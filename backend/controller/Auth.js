@@ -11,10 +11,10 @@ const register = async (req, res) => {
     const checkEmail = await userModel.findOne({ email });
 
     if (checkEmail) {
-      return res.status(401).json({ message: "User ALready Registered" });
+      return res.status(409).json({ message: "User ALready Registered" });
     }
 
-    const hashPassword = await bcrypt.hash(password, 10);
+    const hashPassword = await bcrypt.hash(password, 12);
     const newUser = new userModel({ username, email, password: hashPassword });
 
     await newUser.save();
@@ -44,11 +44,13 @@ const login = async (req, res) => {
       return res.status(404).json({ message: "Invalid password" });
     }
 
-    const token = jwt.sign({ userId: checkUser._id }, process.env.SECRET_KEY);
+    const token = jwt.sign({ userId: checkUser._id }, process.env.SECRET_KEY, {
+      expiresIn: "1h",
+    });
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === "production",
       maxAge: 3600000,
     });
 
@@ -61,7 +63,11 @@ const login = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    res.clearCookie("token");
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
+
     res.status(200).json({ message: "Logout successfully" });
   } catch (error) {
     res.status(401).json({ message: "Server error while logout" });
